@@ -15,7 +15,7 @@ limitations under the License.
 */
 package main
 
-import "gitlab-token-rotater/cmd"
+import "gitlab-token-rotate/cmd"
 
 func main() {
 	cmd.Execute()
