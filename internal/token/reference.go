@@ -1,9 +1,12 @@
 package token
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // Reference references a token in a token store.
 type Reference interface {
-	ReadToken() (string, error)
-	UpdateToken(token string, expiresAt time.Time) error
+	ReadToken(ctx context.Context) (string, error)
+	UpdateToken(ctx context.Context, token string, expiresAt time.Time) error
 }

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/url"
@@ -14,20 +15,21 @@ import (
 type Rotator struct {
 	durationInDays int
 	baseURL        *url.URL
+	rescueToken    bool
 }
 
 // NewRotator creates a new gitlab personal access token rotator
-func NewRotator(durationInDays int, baseURL *url.URL) Rotator {
-	return Rotator{durationInDays: durationInDays, baseURL: baseURL}
+func NewRotator(durationInDays int, baseURL *url.URL, rescueToken bool) Rotator {
+	return Rotator{durationInDays: durationInDays, baseURL: baseURL, rescueToken: rescueToken}
 }
 
 // Rotate rotates the gitlab personal access token from the token store.
-func (r Rotator) Rotate(tokenReference token.Reference) error {
+func (r Rotator) Rotate(ctx context.Context, tokenReference token.Reference) error {
 	if r.durationInDays < 1 || r.durationInDays > 365 {
 		return errors.New("rotator: duration in days must be between 1 and 365")
 	}
 
-	token, err := tokenReference.ReadToken()
+	token, err := tokenReference.ReadToken(ctx)
 	if err != nil {
 		return err
 	}
@@ -54,10 +56,12 @@ func (r Rotator) Rotate(tokenReference token.Reference) error {
 		return err
 	}
 
-	err = tokenReference.UpdateToken(newAccessToken.Token, time.Time(*newAccessToken.ExpiresAt))
+	err = tokenReference.UpdateToken(ctx, newAccessToken.Token, time.Time(*newAccessToken.ExpiresAt))
 	if err != nil {
 		log.Printf("Error updating the gitlab access token in 1password. Manual renewal is required")
-		writeTokenToTemporaryFile(newAccessToken.Token)
+		if r.rescueToken {
+			writeTokenToTemporaryFile(newAccessToken.Token)
+		}
 		return err
 	}
 

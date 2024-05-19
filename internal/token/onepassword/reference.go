@@ -1,6 +1,7 @@
 package onepassword
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -16,7 +17,7 @@ type TokenReference struct {
 }
 
 // NewTokenStore create a new 1password token reference.
-func NewTokenReference(vaultName, itemName string) (*TokenReference, error) {
+func NewTokenReference(_ context.Context, vaultName, itemName string) (*TokenReference, error) {
 	if _, err := exec.LookPath("op"); err != nil {
 		return nil, errors.New("op not found in $PATH")
 	}
@@ -25,7 +26,7 @@ func NewTokenReference(vaultName, itemName string) (*TokenReference, error) {
 }
 
 // ReadToken reads the token from an API_CREDENTIAL in 1Password from the specified item and vault.
-func (t TokenReference) ReadToken() (string, error) {
+func (t TokenReference) ReadToken(_ context.Context) (string, error) {
 	item, err := t.client.VaultItem(t.itemName, t.vaultName)
 	if err != nil {
 		return "", err
@@ -43,7 +44,7 @@ func (t TokenReference) ReadToken() (string, error) {
 }
 
 // UpdateToken updates the credential and expires field values of the specified item and vault.
-func (t TokenReference) UpdateToken(token string, expiresAt time.Time) error {
+func (t TokenReference) UpdateToken(_ context.Context, token string, expiresAt time.Time) error {
 	_, err := op.NewOpClient().EditItemField(t.vaultName, t.itemName,
 		op.Assignment{Name: "credential", Value: token},
 		op.Assignment{Name: "expires", Value: fmt.Sprintf("%d", expiresAt.Unix())},

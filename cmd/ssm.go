@@ -18,35 +18,33 @@ limitations under the License.
 
 import (
 	"context"
-	"errors"
 	"net/url"
+
+	"gitlab-token-rotate/internal/token/ssm"
 
 	"github.com/spf13/cobra"
 	"gitlab-token-rotate/internal"
-	"gitlab-token-rotate/internal/token/onepassword"
 )
 
-// onePasswordCmd rotates the token in 1 password
-var onePasswordCmd = &cobra.Command{
-	Use:   "1password",
-	Short: "rotate the token stored in 1password",
-	Long:  `reads the Gitlab token from 1password and stores the new token with the new expiration date`,
+// awsSsmCmd rotates the token in a AWS SSM parameter
+var awsSsmCmd = &cobra.Command{
+	Use:   "aws-ssm",
+	Short: "rotate the token in an AWS SSM parameter",
+	Long:  `rotates the Gitlab token in an AWS SSM parameter`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		duration, err := cmd.Flags().GetInt("duration")
-		if err != nil || duration <= 0 || duration > 365 {
-			return errors.New("token duration must be between 1 and 365 days")
-		}
-
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		url, _ := url.Parse(cmd.Flag("url").Value.String())
-		vaultName := cmd.Flag("vault").Value.String()
-		itemName := cmd.Flag("item").Value.String()
 		durationInDays, _ := cmd.Flags().GetInt("duration")
+		url, _ := func() (*url.URL, error) {
+			u, _ := cmd.Flags().GetString("url")
+			return url.Parse(u)
+		}()
+		name, _ := cmd.Flags().GetString("parameter-name")
+		region, _ := cmd.Flags().GetString("region")
 		ctx := context.Background()
 
-		reference, err := onepassword.NewTokenReference(ctx, vaultName, itemName)
+		reference, err := ssm.NewTokenReference(ctx, name, region)
 		if err != nil {
 			return err
 		}
@@ -57,9 +55,8 @@ var onePasswordCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(onePasswordCmd)
-	onePasswordCmd.Flags().String("vault", "Private", "the token is stored in")
-	onePasswordCmd.MarkFlagRequired("vault")
-	onePasswordCmd.Flags().String("item", "", "of the token")
-	onePasswordCmd.MarkFlagRequired("item")
+	rootCmd.AddCommand(awsSsmCmd)
+	awsSsmCmd.Flags().String("name", "", "of the SSM Parameter")
+	awsSsmCmd.Flags().String("region", "", "in which the parameter lives")
+	awsSsmCmd.MarkFlagRequired("name")
 }
