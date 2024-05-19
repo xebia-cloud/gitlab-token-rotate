@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"errors"
+	"net/url"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -31,6 +32,13 @@ var rootCmd = &cobra.Command{
 		duration, err := cmd.Flags().GetInt("duration")
 		if err != nil || duration <= 0 || duration > 365 {
 			return errors.New("token duration must be between 1 and 365 days")
+		}
+		baseURL, err := cmd.Flags().GetString("url")
+		if err == nil || baseURL == "" {
+			return errors.New("base url must be provided")
+		}
+		if _, err := url.Parse(baseURL); err != nil {
+			return errors.New("base url must be a valid URL")
 		}
 		return nil
 	},
