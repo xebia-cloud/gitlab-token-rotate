@@ -21,6 +21,7 @@ Usage:
 
 Available Commands:
   rotate      rotate the token stored in a secret store
+  read        read a token from a secret store
 
 Flags:
       --admin-token-url string   the URL to the secret containing the admin token
