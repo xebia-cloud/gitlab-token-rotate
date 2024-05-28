@@ -1,11 +1,11 @@
 # token-manager
 
-A command line utility to work safely with given tokens, directly from a secret manager.
+A command line utility to work safely with given tokens, directly from a secret store.
 
 The tokens are references through a URL:
 
 
-| secret manager        | URL pattern                                       |
+| secret store          | URL pattern                                       |
 |-----------------------|---------------------------------------------------|
 | 1password             | `op://<Vault name or id>/<token name or id>`      |
 | Google Secret Manager | `gsm:///<secret name>`                            |
