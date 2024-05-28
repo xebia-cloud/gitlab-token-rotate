@@ -1,4 +1,4 @@
-module gitlab-token-rotate
+module token-manager
 
 go 1.22
 

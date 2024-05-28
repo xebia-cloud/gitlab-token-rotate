@@ -3,13 +3,16 @@ package internal
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
+	"slices"
 	"time"
 
+	"token-manager/internal/secretreference"
+
 	"github.com/xanzy/go-gitlab"
-	"gitlab-token-rotate/internal/token"
 )
 
 type Rotator struct {
@@ -23,50 +26,114 @@ func NewRotator(durationInDays int, baseURL *url.URL, rescueToken bool) Rotator 
 	return Rotator{durationInDays: durationInDays, baseURL: baseURL, rescueToken: rescueToken}
 }
 
+func rotatePersonalAccessToken(client *gitlab.Client, tokenID int, newExpirationDate time.Time) (string, string, time.Time, error) {
+	newAccessToken, _, err := client.PersonalAccessTokens.RotatePersonalAccessToken(
+		tokenID,
+		&gitlab.RotatePersonalAccessTokenOptions{
+			ExpiresAt: (*gitlab.ISOTime)(&newExpirationDate),
+		})
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+	return newAccessToken.Name, newAccessToken.Token, time.Time(*newAccessToken.ExpiresAt), nil
+}
+
+func rotateProjectAccessToken(client *gitlab.Client, project string, tokenID int, newExpirationDate time.Time) (string, string, time.Time, error) {
+	newAccessToken, _, err := client.ProjectAccessTokens.RotateProjectAccessToken(
+		project,
+		tokenID,
+		&gitlab.RotateProjectAccessTokenOptions{
+			ExpiresAt: (*gitlab.ISOTime)(&newExpirationDate),
+		})
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+	return newAccessToken.Name, newAccessToken.Token, time.Time(*newAccessToken.ExpiresAt), nil
+}
+
+func rotateGroupAccessToken(client *gitlab.Client, group string, tokenID int, newExpirationDate time.Time) (string, string, time.Time, error) {
+	newAccessToken, _, err := client.GroupAccessTokens.RotateGroupAccessToken(
+		group,
+		tokenID,
+		&gitlab.RotateGroupAccessTokenOptions{
+			ExpiresAt: (*gitlab.ISOTime)(&newExpirationDate),
+		})
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+	return newAccessToken.Name, newAccessToken.Token, time.Time(*newAccessToken.ExpiresAt), nil
+}
+
 // Rotate rotates the gitlab personal access token from the token store.
-func (r Rotator) Rotate(ctx context.Context, tokenReference token.Reference) error {
+func (r Rotator) Rotate(ctx context.Context, project, group string, tokenReference, adminTokenReference secretreference.SecretReference) error {
+	var err error
+	var tokenClient, adminClient *gitlab.Client
 	if r.durationInDays < 1 || r.durationInDays > 365 {
 		return errors.New("rotator: duration in days must be between 1 and 365")
 	}
 
-	token, err := tokenReference.ReadToken(ctx)
+	token, err := tokenReference.Read(ctx)
 	if err != nil {
 		return err
 	}
 
-	client, err := gitlab.NewClient(token, gitlab.WithBaseURL(r.baseURL.String()))
+	tokenClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(r.baseURL.String()))
 	if err != nil {
 		return err
 	}
 
-	accessToken, _, err := client.PersonalAccessTokens.GetSinglePersonalAccessToken()
+	if adminTokenReference != nil {
+		adminToken, err := adminTokenReference.Read(ctx)
+		if err != nil {
+			return err
+		}
+
+		adminClient, err = gitlab.NewClient(adminToken, gitlab.WithBaseURL(r.baseURL.String()))
+		if err != nil {
+			return err
+		}
+	} else {
+		adminClient = tokenClient
+	}
+
+	accessToken, _, err := tokenClient.PersonalAccessTokens.GetSinglePersonalAccessToken()
 	if err != nil {
 		return err
+	}
+
+	if adminTokenReference == nil && slices.Index(accessToken.Scopes, "api") == -1 {
+		return fmt.Errorf("rotator: accessToken %s does not have the permission to rotate itself", accessToken.Name)
 	}
 
 	log.Printf("api token %s will expire on %s", accessToken.Name, accessToken.ExpiresAt.String())
 
 	newExpirationDate := time.Now().Add(time.Hour * 24 * time.Duration(r.durationInDays))
-	newAccessToken, _, err := client.PersonalAccessTokens.RotatePersonalAccessToken(
-		accessToken.ID,
-		&gitlab.RotatePersonalAccessTokenOptions{
-			ExpiresAt: (*gitlab.ISOTime)(&newExpirationDate),
-		})
+
+	var tokenName, newToken string
+
+	if project != "" {
+		tokenName, newToken, newExpirationDate, err = rotateProjectAccessToken(adminClient, project, accessToken.ID, newExpirationDate)
+	} else if group != "" {
+		tokenName, newToken, newExpirationDate, err = rotateGroupAccessToken(adminClient, group, accessToken.ID, newExpirationDate)
+	} else {
+		tokenName, newToken, newExpirationDate, err = rotatePersonalAccessToken(adminClient, accessToken.ID, newExpirationDate)
+	}
+
 	if err != nil {
 		return err
 	}
 
-	err = tokenReference.UpdateToken(ctx, newAccessToken.Token, time.Time(*newAccessToken.ExpiresAt))
+	err = tokenReference.Update(ctx, newToken, newExpirationDate)
 	if err != nil {
 		log.Printf("Error updating the gitlab access token in 1password. Manual renewal is required")
 		if r.rescueToken {
-			writeTokenToTemporaryFile(newAccessToken.Token)
+			writeTokenToTemporaryFile(newToken)
 		}
 		return err
 	}
 
 	log.Printf("rotated api token %s, will expire on %s",
-		newAccessToken.Name, newAccessToken.ExpiresAt.String())
+		tokenName, newExpirationDate.Format(time.DateOnly))
 
 	return nil
 }

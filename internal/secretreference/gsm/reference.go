@@ -2,7 +2,9 @@ package gsm
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -21,6 +23,10 @@ type TokenReference struct {
 	project               string
 	useDefaultCredentials bool
 	client                *secretmanager.Client
+}
+
+func (t TokenReference) String() string {
+	return fmt.Sprintf("gsm:///%s", t.secretName)
 }
 
 // NewTokenReference create a new Google Secret Manager token reference
@@ -50,6 +56,7 @@ func NewTokenReference(ctx context.Context, secretName string, project string, u
 		return nil, err
 	}
 
+	ref.secretName = secretName
 	ref.secretVersion, err = normalizeSecretName(secretName, project)
 	if err != nil {
 		return nil, err
@@ -58,8 +65,18 @@ func NewTokenReference(ctx context.Context, secretName string, project string, u
 	return &ref, nil
 }
 
+func NewFromURL(ctx context.Context, referenceURL *url.URL) (*TokenReference, error) {
+	if referenceURL.Scheme != "gsm" {
+		return nil, fmt.Errorf("unsupported scheme %s", referenceURL.Scheme)
+	}
+	if referenceURL.Host != "" {
+		return nil, errors.New("expected an url in the form gsm:///<google secret name>")
+	}
+	return NewTokenReference(ctx, referenceURL.Path[1:], "", false)
+}
+
 // ReadToken reads the token from an Google Secret Manager secret
-func (t TokenReference) ReadToken(ctx context.Context) (string, error) {
+func (t TokenReference) Read(ctx context.Context) (string, error) {
 	request := &secretmanagerpb.AccessSecretVersionRequest{
 		Name: t.secretVersion,
 	}
@@ -73,9 +90,11 @@ func (t TokenReference) ReadToken(ctx context.Context) (string, error) {
 }
 
 // UpdateToken updates the secret of the Google Secret Manager secret
-func (t TokenReference) UpdateToken(ctx context.Context, token string, expiresAt time.Time) error {
+func (t TokenReference) Update(ctx context.Context, token string, expiresAt time.Time) error {
+	parent := t.secretVersion[:strings.Index(t.secretVersion, "/versions/")]
+
 	request := &secretmanagerpb.AddSecretVersionRequest{
-		Parent:  t.secretName,
+		Parent:  parent,
 		Payload: &secretmanagerpb.SecretPayload{Data: []byte(token)},
 	}
 

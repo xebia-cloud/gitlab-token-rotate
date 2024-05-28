@@ -2,6 +2,10 @@ package ssm
 
 import (
 	"context"
+	"fmt"
+	"net/url"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -15,8 +19,19 @@ type TokenReference struct {
 	client        *awsssm.Client
 }
 
+func (t TokenReference) String() string {
+	if strings.HasPrefix(t.parameterName, "arn:") {
+		return t.parameterName
+	}
+	return fmt.Sprintf("ssm://%s", t.parameterName)
+}
+
 // NewTokenReference create a new AWS SSM parameter token reference.
 func NewTokenReference(ctx context.Context, parameterName string, awsRegion string) (*TokenReference, error) {
+	if !strings.HasPrefix(parameterName, "arn:") && !strings.HasPrefix(parameterName, "/") {
+		parameterName = "/" + parameterName
+	}
+
 	ref := TokenReference{
 		parameterName: parameterName, awsRegion: awsRegion,
 	}
@@ -32,8 +47,26 @@ func NewTokenReference(ctx context.Context, parameterName string, awsRegion stri
 	return &ref, nil
 }
 
+var parameterPattern = regexp.MustCompile(`^(?P<Partition>[^:]*):ssm:(?P<Region>[^:]*):(?P<AccountID>[^:]*):parameter/(?P<Resource>.*)$`)
+
+func NewFromURL(ctx context.Context, referenceURL *url.URL) (*TokenReference, error) {
+	if referenceURL.Scheme == "arn" {
+		if !parameterPattern.MatchString(referenceURL.Opaque) {
+			return nil, fmt.Errorf("unsupported ARN %s", referenceURL.Scheme)
+		}
+
+		return NewTokenReference(ctx, "arn:"+referenceURL.Opaque, "")
+	}
+
+	if referenceURL.Scheme == "ssm" {
+		return NewTokenReference(ctx, referenceURL.Path, "")
+	}
+
+	return nil, fmt.Errorf("unsupported URL %s", referenceURL)
+}
+
 // ReadToken reads the token from the SSM parameter
-func (t TokenReference) ReadToken(ctx context.Context) (string, error) {
+func (t TokenReference) Read(ctx context.Context) (string, error) {
 	response, err := t.client.GetParameter(ctx,
 		&awsssm.GetParameterInput{
 			Name:           aws.String(t.parameterName),
@@ -46,7 +79,7 @@ func (t TokenReference) ReadToken(ctx context.Context) (string, error) {
 }
 
 // UpdateToken updates the SSM parameter with the token
-func (t TokenReference) UpdateToken(ctx context.Context, token string, expiresAt time.Time) error {
+func (t TokenReference) Update(ctx context.Context, token string, expiresAt time.Time) error {
 	_, err := t.client.PutParameter(ctx,
 		&awsssm.PutParameterInput{
 			Name:      aws.String(t.parameterName),
