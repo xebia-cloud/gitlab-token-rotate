@@ -2,17 +2,18 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"log"
-	"token-manager/internal/secretreference"
+
+	"token-manager/internal/factory"
+
+	"github.com/spf13/cobra"
 )
 
-func NewReadCmd(root *cobra.Command) *cobra.Command {
-	c := &cobra.Command{
-		Use:   "read token-url",
-		Short: "Read a secret from the secret store",
-		Args:  cobra.MinimumNArgs(1),
-	}
+func NewReadCmd() *cobra.Command {
+	c := new(cobra.Command)
+	c.Use = "read token-url"
+	c.Short = "Read a secret from the secret store"
+	c.Args = cobra.MinimumNArgs(1)
 
 	c.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		if c.Parent() != nil && c.Parent().PersistentPreRunE != nil {
@@ -25,7 +26,7 @@ func NewReadCmd(root *cobra.Command) *cobra.Command {
 	}
 
 	c.RunE = func(cmd *cobra.Command, args []string) error {
-		tokenReference, err := secretreference.NewFromURL(cmd.Context(), args[0])
+		tokenReference, err := factory.NewSecretReferenceFromURL(cmd.Context(), args[0])
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -37,10 +38,5 @@ func NewReadCmd(root *cobra.Command) *cobra.Command {
 		return err
 	}
 
-	rootCmd.AddCommand(c)
 	return c
-}
-
-func init() {
-	NewReadCmd(rootCmd)
 }

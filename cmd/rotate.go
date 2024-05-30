@@ -4,10 +4,11 @@ import (
 	"log"
 	"time"
 
+	"token-manager/internal/factory"
+
 	"github.com/spf13/cobra"
 
 	"token-manager/internal/gitlab"
-	"token-manager/internal/secretreference"
 )
 
 import "C"
@@ -20,7 +21,7 @@ type gitlabRotateCommand struct {
 	gitlabRotate gitlab.GitlabRotateCommand
 }
 
-func NewRotateCommand(root *cobra.Command) *gitlabRotateCommand {
+func NewRotateCommand() *gitlabRotateCommand {
 	c := &gitlabRotateCommand{
 		Command: cobra.Command{
 			Use:   "rotate token-url",
@@ -61,10 +62,10 @@ func NewRotateCommand(root *cobra.Command) *gitlabRotateCommand {
 		}
 
 		if adminToken := cmd.Flag("admin-token-url").Value.String(); adminToken != "" {
-			c.gitlabRotate.AdminToken, err = secretreference.NewFromURL(cmd.Context(), adminToken)
+			c.gitlabRotate.AdminToken, err = factory.NewSecretReferenceFromURL(cmd.Context(), adminToken)
 		}
 
-		c.gitlabRotate.Token, err = secretreference.NewFromURL(cmd.Context(), args[0])
+		c.gitlabRotate.Token, err = factory.NewSecretReferenceFromURL(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
@@ -83,10 +84,5 @@ func NewRotateCommand(root *cobra.Command) *gitlabRotateCommand {
 	c.Flags().SortFlags = false
 	c.Flags().String("project", "", "name of the gitlab project the token belongs to")
 	c.Flags().String("group", "", "name of the gitlab group the token belongs to")
-	gitlabRootCmd.AddCommand(&c.Command)
 	return c
-}
-
-func init() {
-	NewRotateCommand(gitlabRootCmd)
 }

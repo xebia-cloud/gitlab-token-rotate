@@ -3,13 +3,15 @@ package cmd
 import (
 	"errors"
 	"net/url"
-
-	"token-manager/internal/secretreference"
+	"os"
 
 	"github.com/spf13/cobra"
+
+	"token-manager/internal/factory"
+	"token-manager/internal/gitlab"
 )
 
-func NewGitlabCmdGroup(root *cobra.Command) *cobra.Command {
+func NewGitlabCmdGroup() *cobra.Command {
 	c := cobra.Command{
 		Use:   "gitlab",
 		Short: "Manage your gitlab tokens",
@@ -27,19 +29,32 @@ func NewGitlabCmdGroup(root *cobra.Command) *cobra.Command {
 		if err != nil || baseURL == "" {
 			return errors.New("base url must be provided")
 		}
-		if url, err := url.Parse(baseURL); err != nil || (url.Scheme != "https" || url.Host == "") {
+		ServerUrl, err := url.Parse(baseURL)
+		if err != nil || (ServerUrl.Scheme != "https" || ServerUrl.Host == "") {
 			return errors.New("a valid https base url must be provided")
 		}
 
+		var token string
 		tokenUrl, err := cmd.Flags().GetString("admin-token-url")
 		if err != nil {
 			return err
 		}
 		if tokenUrl != "" {
-			_, err = secretreference.NewFromURL(cmd.Context(), tokenUrl)
+			tokenReference, err := factory.NewSecretReferenceFromURL(cmd.Context(), tokenUrl)
 			if err != nil {
 				return errors.New("admin-token-url is not a valid secret reference url")
 			}
+
+			token, err = tokenReference.Read(cmd.Context())
+			if err != nil {
+				return err
+			}
+		} else {
+			token = os.Getenv("GITLAB_TOKEN")
+		}
+		// initialize global admin client
+		if _, err = gitlab.GetAdminClient(cmd.Context(), ServerUrl.Host, token); err != nil {
+			return err
 		}
 
 		return nil
@@ -48,9 +63,8 @@ func NewGitlabCmdGroup(root *cobra.Command) *cobra.Command {
 	c.PersistentFlags().SortFlags = false
 	c.PersistentFlags().String("url", "https://gitlab.com", "to rotate the token from")
 	c.PersistentFlags().String("admin-token-url", "", "the URL to the secret containing the admin token")
-	rootCmd.AddCommand(&c)
+
+	c.AddCommand(&NewRotateCommand().Command)
+	c.AddCommand(NewReadCmd())
 	return &c
 }
-
-// gitlabRootCmd represents the base command when called without any subcommands
-var gitlabRootCmd = NewGitlabCmdGroup(rootCmd)

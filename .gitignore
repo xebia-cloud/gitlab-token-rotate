@@ -20,5 +20,6 @@
 # Go workspace file
 go.work
 
-gitlab-token-rotate
+token-manager
 .idea/
+

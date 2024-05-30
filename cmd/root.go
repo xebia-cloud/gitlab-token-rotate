@@ -14,6 +14,9 @@ var rootCmd = &cobra.Command{
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
+	rootCmd.AddCommand(NewReadCmd())
+	rootCmd.AddCommand(NewGitlabCmdGroup())
+
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
