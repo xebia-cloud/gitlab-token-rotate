@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"token-manager/internal/secretreference"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -49,7 +50,7 @@ func NewTokenReference(ctx context.Context, parameterName string, awsRegion stri
 
 var parameterPattern = regexp.MustCompile(`^(?P<Partition>[^:]*):ssm:(?P<Region>[^:]*):(?P<AccountID>[^:]*):parameter/(?P<Resource>.*)$`)
 
-func NewFromURL(ctx context.Context, referenceURL *url.URL) (*TokenReference, error) {
+func NewFromURL(ctx context.Context, referenceURL *url.URL) (secretreference.SecretReference, error) {
 	if referenceURL.Scheme == "arn" {
 		if !parameterPattern.MatchString(referenceURL.Opaque) {
 			return nil, fmt.Errorf("unsupported ARN %s", referenceURL.Scheme)

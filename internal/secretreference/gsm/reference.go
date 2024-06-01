@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"token-manager/internal/secretreference"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
@@ -30,7 +31,7 @@ func (t TokenReference) String() string {
 }
 
 // NewTokenReference create a new Google Secret Manager token reference
-func NewTokenReference(ctx context.Context, secretName string, project string, useDefaultCredentials bool) (*TokenReference, error) {
+func NewTokenReference(ctx context.Context, secretName string, project string, useDefaultCredentials bool) (secretreference.SecretReference, error) {
 	var err error
 	var credentials *google.Credentials
 
@@ -65,7 +66,7 @@ func NewTokenReference(ctx context.Context, secretName string, project string, u
 	return &ref, nil
 }
 
-func NewFromURL(ctx context.Context, referenceURL *url.URL) (*TokenReference, error) {
+func NewFromURL(ctx context.Context, referenceURL *url.URL) (secretreference.SecretReference, error) {
 	if referenceURL.Scheme != "gsm" {
 		return nil, fmt.Errorf("unsupported scheme %s", referenceURL.Scheme)
 	}
@@ -75,7 +76,7 @@ func NewFromURL(ctx context.Context, referenceURL *url.URL) (*TokenReference, er
 	return NewTokenReference(ctx, referenceURL.Path[1:], "", false)
 }
 
-// ReadToken reads the token from an Google Secret Manager secret
+// Read reads the token from an Google Secret Manager secret
 func (t TokenReference) Read(ctx context.Context) (string, error) {
 	request := &secretmanagerpb.AccessSecretVersionRequest{
 		Name: t.secretVersion,
@@ -89,7 +90,7 @@ func (t TokenReference) Read(ctx context.Context) (string, error) {
 	return string(response.Payload.Data), nil
 }
 
-// UpdateToken updates the secret of the Google Secret Manager secret
+// Update updates the secret of the Google Secret Manager secret
 func (t TokenReference) Update(ctx context.Context, token string, expiresAt time.Time) error {
 	parent := t.secretVersion[:strings.Index(t.secretVersion, "/versions/")]
 

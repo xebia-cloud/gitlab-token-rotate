@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+	"token-manager/internal/secretreference"
 
 	"github.com/dvcrn/go-1password-cli/op"
 )
@@ -22,7 +23,7 @@ func (t TokenReference) String() string {
 	return fmt.Sprintf("op://%s/%s", t.vaultName, t.itemName)
 }
 
-func NewFromURL(ctx context.Context, referenceURL *url.URL) (*TokenReference, error) {
+func NewFromURL(ctx context.Context, referenceURL *url.URL) (secretreference.SecretReference, error) {
 	// op://Private/gitlab access token/note
 	if referenceURL.Scheme != "op" {
 		return nil, errors.New("unsupported schema " + referenceURL.Scheme + ":")
@@ -51,7 +52,7 @@ func NewTokenReference(_ context.Context, vaultName, itemName string) (*TokenRef
 	return &TokenReference{vaultName: vaultName, itemName: itemName, client: op.NewOpClient()}, nil
 }
 
-// ReadToken reads the token from an API_CREDENTIAL in 1Password from the specified item and vault.
+// Read reads the token from an API_CREDENTIAL in 1Password from the specified item and vault.
 func (t TokenReference) Read(_ context.Context) (string, error) {
 	item, err := t.client.VaultItem(t.itemName, t.vaultName)
 	if err != nil {
@@ -69,7 +70,7 @@ func (t TokenReference) Read(_ context.Context) (string, error) {
 	return "", errors.New("no credential found in item")
 }
 
-// UpdateToken updates the credential and expires field values of the specified item and vault.
+// Update updates the credential and expires field values of the specified item and vault.
 func (t TokenReference) Update(_ context.Context, token string, expiresAt time.Time) error {
 	_, err := op.NewOpClient().EditItemField(t.vaultName, t.itemName,
 		op.Assignment{Name: "credential", Value: token},
