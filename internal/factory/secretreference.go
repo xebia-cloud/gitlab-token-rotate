@@ -2,7 +2,7 @@ package factory
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/url"
 
 	"token-manager/internal/gitlab"
@@ -12,24 +12,35 @@ import (
 	"token-manager/internal/secretreference/ssm"
 )
 
+type SecretReferenceFactoryMethod func(context.Context, *url.URL) (secretreference.SecretReference, error)
+
+var factoryMethods = map[string]SecretReferenceFactoryMethod{
+	"op":     onepassword.NewFromURL,
+	"gsm":    gsm.NewFromURL,
+	"arn":    ssm.NewFromURL,
+	"ssm":    ssm.NewFromURL,
+	"gitlab": gitlab.NewFromURL,
+}
+
+var SupportedScheme = make([]string, 0, len(factoryMethods))
+var UnsupportedSchemeError = errors.New("Unsupported scheme")
+
 func NewSecretReferenceFromURL(ctx context.Context, referenceURL string) (secretreference.SecretReference, error) {
 	var parsedURL *url.URL
 	parsedURL, err := url.Parse(referenceURL)
 	if err != nil {
 		return nil, err
 	}
-	switch parsedURL.Scheme {
-	case "op":
-		return onepassword.NewFromURL(ctx, parsedURL)
-	case "gsm":
-		return gsm.NewFromURL(ctx, parsedURL)
-	case "ssm":
-		return ssm.NewFromURL(ctx, parsedURL)
-	case "arn":
-		return ssm.NewFromURL(ctx, parsedURL)
-	case "gitlab":
-		return gitlab.NewFromURL(ctx, parsedURL)
-	default:
-		return nil, fmt.Errorf("unsupported scheme %s", parsedURL.Scheme)
+	newFromURL, ok := factoryMethods[parsedURL.Scheme]
+	if !ok {
+		return nil, UnsupportedSchemeError
+	}
+
+	return newFromURL(ctx, parsedURL)
+}
+
+func init() {
+	for scheme, _ := range factoryMethods {
+		SupportedScheme = append(SupportedScheme, scheme)
 	}
 }
