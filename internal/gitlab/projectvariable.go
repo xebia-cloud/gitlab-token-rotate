@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -57,7 +58,7 @@ func (t ProjectTokenReference) isASingleVariable(client *gl.Client) error {
 // Read reads the token from the gitlab project CI/CD variable
 func (t ProjectTokenReference) Read(ctx context.Context) (token string, err error) {
 	var client *gl.Client
-	client, err = GetAdminClient(ctx, t.url.Host, "")
+	client, err = gl.NewClient(os.Getenv("GITLAB_TOKEN"))
 	if err != nil {
 		return "", err
 	}
@@ -82,7 +83,7 @@ func (t ProjectTokenReference) Read(ctx context.Context) (token string, err erro
 // Update updates the token in the the gitlab project CI/CD variable
 func (t ProjectTokenReference) Update(ctx context.Context, token string, expiresAt time.Time) (err error) {
 	var client *gl.Client
-	client, err = GetAdminClient(ctx, t.url.Host, "")
+	client, err = gl.NewClient(os.Getenv("GITLAB_TOKEN"))
 	if err != nil {
 		return err
 	}

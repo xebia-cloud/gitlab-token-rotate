@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewReadCmd() *cobra.Command {
+func newReadCmd() *cobra.Command {
 	c := new(cobra.Command)
 	c.Use = "read token-url"
 	c.Short = "Read a secret from the secret store"

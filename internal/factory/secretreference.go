@@ -12,9 +12,7 @@ import (
 	"token-manager/internal/secretreference/ssm"
 )
 
-type SecretReferenceFactoryMethod func(context.Context, *url.URL) (secretreference.SecretReference, error)
-
-var factoryMethods = map[string]SecretReferenceFactoryMethod{
+var factoryMethods = map[string]func(context.Context, *url.URL) (secretreference.SecretReference, error){
 	"op":     onepassword.NewFromURL,
 	"gsm":    gsm.NewFromURL,
 	"arn":    ssm.NewFromURL,

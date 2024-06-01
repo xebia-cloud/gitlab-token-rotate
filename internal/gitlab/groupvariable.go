@@ -3,6 +3,7 @@ package gitlab
 import (
 	"context"
 	"net/url"
+	"os"
 	"time"
 
 	gl "github.com/xanzy/go-gitlab"
@@ -25,7 +26,7 @@ func (t GroupTokenReference) Scheme() string {
 // Read the token from the gitlab group CI/CD variable
 func (t GroupTokenReference) Read(ctx context.Context) (token string, err error) {
 	var client *gl.Client
-	client, err = GetAdminClient(ctx, t.url.Host, "")
+	client, err = gl.NewClient(os.Getenv("GITLAB_TOKEN"))
 	if err != nil {
 		return "", err
 	}
@@ -41,7 +42,7 @@ func (t GroupTokenReference) Read(ctx context.Context) (token string, err error)
 // Update  the token in the gitlab group CI/CD variable
 func (t GroupTokenReference) Update(ctx context.Context, token string, expiresAt time.Time) (err error) {
 	var client *gl.Client
-	client, err = GetAdminClient(ctx, t.url.Host, "")
+	client, err = gl.NewClient(os.Getenv("GITLAB_TOKEN"))
 	if err != nil {
 		return err
 	}

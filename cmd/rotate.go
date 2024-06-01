@@ -21,7 +21,7 @@ type gitlabRotateCommand struct {
 	gitlabRotate gitlab.GitlabRotateCommand
 }
 
-func NewRotateCommand() *gitlabRotateCommand {
+func newRotateCommand() *gitlabRotateCommand {
 	c := &gitlabRotateCommand{
 		Command: cobra.Command{
 			Use:   "rotate token-url",
