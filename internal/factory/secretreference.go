@@ -5,7 +5,8 @@ import (
 	"errors"
 	"net/url"
 
-	"token-manager/internal/gitlab"
+	"token-manager/internal/secretreference/gitlab"
+
 	"token-manager/internal/secretreference"
 	"token-manager/internal/secretreference/gsm"
 	"token-manager/internal/secretreference/onepassword"
@@ -20,8 +21,10 @@ var factoryMethods = map[string]func(context.Context, *url.URL) (secretreference
 	"gitlab": gitlab.NewFromURL,
 }
 
-var SupportedScheme = make([]string, 0, len(factoryMethods))
-var UnsupportedSchemeError = errors.New("Unsupported scheme")
+var (
+	SupportedScheme        = make([]string, 0, len(factoryMethods))
+	UnsupportedSchemeError = errors.New("Unsupported scheme")
+)
 
 func NewSecretReferenceFromURL(ctx context.Context, referenceURL string) (secretreference.SecretReference, error) {
 	var parsedURL *url.URL
@@ -38,7 +41,7 @@ func NewSecretReferenceFromURL(ctx context.Context, referenceURL string) (secret
 }
 
 func init() {
-	for scheme, _ := range factoryMethods {
+	for scheme := range factoryMethods {
 		SupportedScheme = append(SupportedScheme, scheme)
 	}
 }

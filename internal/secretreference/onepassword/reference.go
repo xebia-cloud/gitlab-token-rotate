@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
 	"token-manager/internal/secretreference"
 
 	"github.com/dvcrn/go-1password-cli/op"

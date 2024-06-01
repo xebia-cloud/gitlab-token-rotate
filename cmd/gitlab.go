@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"errors"
-	"github.com/spf13/cobra"
 	"net/url"
+
+	"github.com/spf13/cobra"
 )
 
 func newGitlabCmdGroup() *cobra.Command {

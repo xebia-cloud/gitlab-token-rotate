@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+
 	"token-manager/internal/factory"
 	"token-manager/internal/secretreference"
 )
