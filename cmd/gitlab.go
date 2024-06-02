@@ -37,5 +37,6 @@ func newGitlabCmdGroup() *cobra.Command {
 	c.PersistentFlags().String("url", "https://gitlab.com", "to rotate the token from")
 
 	c.AddCommand(&newRotateCommand().Command)
+	c.AddCommand(&newCreateCommand().Command)
 	return &c
 }
