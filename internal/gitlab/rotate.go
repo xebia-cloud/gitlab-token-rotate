@@ -37,18 +37,9 @@ func (c GitlabRotateCommand) Rotate(ctx context.Context) error {
 		return err
 	}
 
-	if c.AdminToken != nil {
-		token, err = c.AdminToken.Read(ctx)
-		if err != nil {
-			return err
-		}
-
-		adminClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(c.Url))
-		if err != nil {
-			return err
-		}
-	} else {
-		adminClient = tokenClient
+	adminClient, err = gitlab.NewClient(os.Getenv("GITLAB_TOKEN"), gitlab.WithBaseURL(c.Url))
+	if err != nil {
+		return err
 	}
 
 	accessToken, _, err := tokenClient.PersonalAccessTokens.GetSinglePersonalAccessToken()
@@ -56,8 +47,10 @@ func (c GitlabRotateCommand) Rotate(ctx context.Context) error {
 		return err
 	}
 
-	if c.AdminToken == nil && slices.Index(accessToken.Scopes, "api") == -1 {
-		return fmt.Errorf("rotator: accessToken %s does not have the permission to rotate itself", accessToken.Name)
+	if slices.Index(accessToken.Scopes, "api") == -1 {
+		fmt.Printf("accessToken %s does not have the permission to rotate itself", accessToken.Name)
+	} else {
+		adminClient = tokenClient
 	}
 
 	log.Printf("api token %s will expire on %s", accessToken.Name, accessToken.ExpiresAt.String())
