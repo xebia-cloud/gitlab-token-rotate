@@ -14,13 +14,12 @@ import (
 )
 
 type GitlabRotateCommand struct {
-	Url         string
-	Token       secretreference.SecretReference
-	AdminToken  secretreference.SecretReference
-	Project     string
-	Group       string
-	Duration    time.Duration
-	RescueToken bool
+	Url        string
+	Token      secretreference.SecretReference
+	AdminToken secretreference.SecretReference
+	Project    string
+	Group      string
+	Duration   time.Duration
 }
 
 func (c GitlabRotateCommand) Rotate(ctx context.Context) error {
@@ -82,9 +81,7 @@ func (c GitlabRotateCommand) Rotate(ctx context.Context) error {
 	if err != nil {
 		log.Printf("Error updating the gitlab access token in 1password. Manual renewal and update to %s is required",
 			c.Token)
-		if c.RescueToken {
-			writeTokenToTemporaryFile(newToken)
-		}
+		writeTokenToTemporaryFile(newToken)
 		return err
 	}
 
